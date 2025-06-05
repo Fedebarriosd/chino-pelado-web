@@ -1,35 +1,45 @@
+// backend/routes/auth.js
 const express = require('express');
 const bcrypt = require('bcrypt');
+const db = require('../db'); // ← Importamos nuestra instancia de SQLite
 const router = express.Router();
 
-// 🔐 Hasheá la contraseña una sola vez (esto en real se guarda en DB)
-const usuarios = [
-  {
-    usuario: 'admin',
-    contraseña: bcrypt.hashSync('1234', 10), // hash de '1234'
-  },
-  {
-    usuario: 'chino',
-    contraseña: bcrypt.hashSync('pelado', 10), // hash de 'pelado'
-  },
-];
-
-router.post('/login', async (req, res) => {
+router.post('/login', (req, res) => {
   const { usuario, contraseña } = req.body;
-
-  const encontrado = usuarios.find(u => u.usuario === usuario);
-
-  if (!encontrado) {
-    return res.status(401).json({ success: false, mensaje: 'Usuario no encontrado' });
+  if (!usuario || !contraseña) {
+    return res.status(400).json({ success: false, mensaje: 'Faltan credenciales' });
   }
 
-  const coincide = await bcrypt.compare(contraseña, encontrado.contraseña);
+  // 1) Buscamos al usuario en la tabla
+  db.get(
+    `SELECT * FROM usuarios WHERE usuario = ?`,
+    [usuario],
+    async (err, row) => {
+      if (err) {
+        console.error('Error SQL al buscar usuario:', err.message);
+        return res.status(500).json({ success: false, mensaje: 'Error interno de servidor' });
+      }
 
-  if (coincide) {
-    res.json({ success: true, mensaje: 'Login exitoso', usuario: encontrado.usuario });
-  } else {
-    res.status(401).json({ success: false, mensaje: 'Contraseña incorrecta' });
-  }
+      // 2) Si no existe ningún registro con ese nombre
+      if (!row) {
+        return res.status(401).json({ success: false, mensaje: 'Usuario no encontrado' });
+      }
+
+      // 3) row.contraseña es el hash almacenado; comparamos con bcrypt
+      const coincide = await bcrypt.compare(contraseña, row.contraseña);
+      if (!coincide) {
+        return res.status(401).json({ success: false, mensaje: 'Contraseña incorrecta' });
+      }
+
+      // 4) Si coincide: devolvemos éxito y el rol para frontend
+      return res.json({
+        success: true,
+        mensaje: 'Login exitoso',
+        usuario: row.usuario,
+        rol: row.rol,
+      });
+    }
+  );
 });
 
 module.exports = router;
