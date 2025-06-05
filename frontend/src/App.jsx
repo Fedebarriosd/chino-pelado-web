@@ -1,14 +1,13 @@
-// frontend/src/App.jsx
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import Login from './pages/Login';
-import Pedidos from './pages/Pedidos';
-import Admin from './pages/Admin';
-import ProtectedRoute from './routes/ProtectedRoute';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import Login    from './pages/Login'
+import Pedidos  from './pages/Pedidos'
+import Admin    from './pages/Admin'   // corresponde a /admin
+import Stock    from './pages/Stock'   // corresponde a /admin/stock
+import ProtectedRoute from './routes/ProtectedRoute'
+import AdminLayout    from './layouts/AdminLayout'
 
 export default function App() {
-  // Obtenemos el usuario guardado en localStorage (puede ser null si no hay sesión)
-  const usuario = JSON.parse(localStorage.getItem('usuario'));
-  console.log('App.jsx recuperó usuario:', usuario);
+  const usuario = JSON.parse(localStorage.getItem('usuario'))
 
   return (
     <BrowserRouter>
@@ -16,7 +15,7 @@ export default function App() {
         {/* Ruta pública de login */}
         <Route path="/login" element={<Login />} />
 
-        {/* Ruta protegida para usuarios normales y administradores */}
+        {/* Rutas de usuario normal (sin sidebar) */}
         <Route
           path="/pedidos"
           element={
@@ -26,19 +25,24 @@ export default function App() {
           }
         />
 
-        {/* Ruta protegida que sólo permite acceso a administradores */}
+        {/* Agrupamos las rutas de admin bajo /admin/* */}
         <Route
-          path="/admin"
+          path="/admin/*"
           element={
             <ProtectedRoute usuario={usuario} requiereAdmin>
-              <Admin />
+              <AdminLayout />
             </ProtectedRoute>
           }
-        />
+        >
+          {/* Rutas hijas (se insertan en <Outlet /> dentro de AdminLayout) */}
+          <Route index element={<Admin />} />        {/* /admin */}
+          <Route path="stock" element={<Stock />} />{/* /admin/stock */}
+          {/* Puedes agregar más rutas hijas aquí, ej: <Route path="pedidos" element={<PedidosAdmin />} /> */}
+        </Route>
 
-        {/* Cualquier otra ruta redirige automáticamente a /login */}
+        {/* Cualquier otra ruta redirige a /login */}
         <Route path="*" element={<Navigate to="/login" />} />
       </Routes>
     </BrowserRouter>
-  );
+  )
 }

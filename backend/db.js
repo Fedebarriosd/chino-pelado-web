@@ -59,6 +59,36 @@ db.serialize(() => {
       }
     );
   }
+
+  // 3.3) Crear tabla “pedidos” si no existe
+  db.run(
+    `CREATE TABLE IF NOT EXISTS pedidos (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      cliente TEXT,
+      descripcion TEXT,
+      fecha TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      entregado INTEGER DEFAULT 0
+    );`,
+    (err) => {
+      if (err) return console.error('Error creando tabla pedidos:', err.message);
+      console.log('✅ Tabla "pedidos" lista');
+    }
+  );
+
+  // 3.4) Tabla stock
+  db.run(
+    `CREATE TABLE IF NOT EXISTS stock (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      producto TEXT NOT NULL,
+      cantidad INTEGER NOT NULL,
+      precio_unitario REAL NOT NULL,
+      categoria TEXT
+    );`,
+    (err) => {
+      if (err) return console.error('Error creando tabla stock:', err.message);
+      console.log('✅ Tabla "stock" lista');
+    }
+  );
 });
 
 // 4) Exportar el objeto “db” para usarlo en otros módulos
