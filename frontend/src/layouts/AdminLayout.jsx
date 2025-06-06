@@ -5,13 +5,11 @@ import Sidebar from '../components/Sidebar';
 export default function AdminLayout() {
   return (
     <Row className="g-0 vh-100">
-      {/* Sidebar fijo en columna izquierda */}
-      <Col xs={3} className="bg-light border-end">
+      <Col xs={2} className="bg-light border-end d-flex flex-column vh-100">
         <Sidebar />
       </Col>
 
-      {/* Área de contenido para rutas hijas */}
-      <Col xs={9}>
+      <Col xs={9} className="d-flex flex-column">
         <Container className="py-4 h-100 overflow-auto">
           <Outlet />
         </Container>

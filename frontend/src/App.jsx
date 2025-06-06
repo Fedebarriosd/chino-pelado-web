@@ -1,21 +1,22 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
-import Login    from './pages/Login'
-import Pedidos  from './pages/Pedidos'
-import Admin    from './pages/Admin'   // corresponde a /admin
-import Stock    from './pages/Stock'   // corresponde a /admin/stock
-import ProtectedRoute from './routes/ProtectedRoute'
-import AdminLayout    from './layouts/AdminLayout'
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import Login          from './pages/Login';
+import Pedidos        from './pages/Pedidos';      // tu Pedidos original
+import AdminUsuarios  from './pages/Admin';        // módulo Usuarios
+import Stock          from './pages/Stock';        // módulo Stock
+import ProtectedRoute from './routes/ProtectedRoute';
+import AdminLayout    from './layouts/AdminLayout';
 
 export default function App() {
-  const usuario = JSON.parse(localStorage.getItem('usuario'))
+  // Obtiene { usuario, rol } desde localStorage, o null si no hay
+  const usuario = JSON.parse(localStorage.getItem('usuario'));
 
   return (
     <BrowserRouter>
       <Routes>
-        {/* Ruta pública de login */}
+        {/* 1) Ruta pública de login */}
         <Route path="/login" element={<Login />} />
 
-        {/* Rutas de usuario normal (sin sidebar) */}
+        {/* 2) Ruta de Pedidos para usuario normal (si la tienes) */}
         <Route
           path="/pedidos"
           element={
@@ -25,7 +26,7 @@ export default function App() {
           }
         />
 
-        {/* Agrupamos las rutas de admin bajo /admin/* */}
+        {/* 3) Bloque de rutas para admin, todas bajo /admin/* */}
         <Route
           path="/admin/*"
           element={
@@ -34,15 +35,20 @@ export default function App() {
             </ProtectedRoute>
           }
         >
-          {/* Rutas hijas (se insertan en <Outlet /> dentro de AdminLayout) */}
-          <Route index element={<Admin />} />        {/* /admin */}
-          <Route path="stock" element={<Stock />} />{/* /admin/stock */}
-          {/* Puedes agregar más rutas hijas aquí, ej: <Route path="pedidos" element={<PedidosAdmin />} /> */}
+          {/* 
+            Rutas hijas de /admin/* 
+            3.a) /admin            → AdminUsuarios (Gestión de usuarios) 
+            3.b) /admin/stock      → Stock (Gestión de stock) 
+            3.c) /admin/pedidos    → Pedidos (reutiliza tu Pedidos original)
+          */}
+          <Route index element={<AdminUsuarios />} />
+          <Route path="stock" element={<Stock />} />
+          <Route path="pedidos" element={<Pedidos />} />
         </Route>
 
-        {/* Cualquier otra ruta redirige a /login */}
-        <Route path="*" element={<Navigate to="/login" />} />
+        {/* 4) Cualquier otra URL redirige a /login */}
+        <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
     </BrowserRouter>
-  )
+  );
 }

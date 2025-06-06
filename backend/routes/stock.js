@@ -1,310 +1,148 @@
-import { useState, useEffect } from 'react';
-import {
-  Container,
-  Row,
-  Col,
-  Form,
-  Button,
-  Table,
-  Alert,
-  Modal
-} from 'react-bootstrap';
-import Sidebar from '../components/Sidebar';
+const express = require('express');
+const db = require('../db'); // Instancia de SQLite (db.js)
+const router = express.Router();
 
-export default function Stock() {
-  // Estados para la tabla de productos
-  const [productos, setProductos] = useState([]);
-  const [mensaje, setMensaje] = useState(null);
-  const [error, setError] = useState(false);
-
-  // Estados para formulario Crear/Editar
-  const [modoEdicion, setModoEdicion] = useState(false);
-  const [idEditar, setIdEditar] = useState(null);
-  const [producto, setProducto] = useState('');
-  const [cantidad, setCantidad] = useState('');
-  const [precioUnitario, setPrecioUnitario] = useState('');
-  const [categoria, setCategoria] = useState('');
-
-  // Estados para modal de eliminación
-  const [showEliminarModal, setShowEliminarModal] = useState(false);
-  const [idEliminar, setIdEliminar] = useState(null);
-
-  // 1) Cargar lista de productos al montar
-  useEffect(() => {
-    fetch('http://localhost:3000/api/stock/list')
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.success) setProductos(data.stock);
-      })
-      .catch((err) => console.error('Error al obtener stock:', err));
-  }, []);
-
-  const fetchProductos = () => {
-    fetch('http://localhost:3000/api/stock/list')
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.success) setProductos(data.stock);
-      })
-      .catch((err) => console.error('Error al obtener stock:', err));
-  };
-
-  // 2) Enviar formulario Crear o Editar
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setMensaje(null);
-    setError(false);
-
-    if (!producto.trim() || cantidad === '' || precioUnitario === '') {
-      setError(true);
-      setMensaje('Debes completar todos los campos obligatorios.');
-      return;
+/**
+ * GET /api/stock/list
+ * Devuelve todos los ítems de stock (entrenados en la tabla stock).
+ * Responde con JSON: { success: true, stock: [ { id, producto, cantidad, precio_unitario, categoria }, ... ] }
+ */
+router.get('/list', (req, res) => {
+  const sql = `
+    SELECT 
+      id,
+      producto,
+      cantidad,
+      precio_unitario,
+      categoria
+    FROM stock
+    ORDER BY producto COLLATE NOCASE;
+  `;
+  db.all(sql, (err, rows) => {
+    if (err) {
+      console.error('Error al listar stock:', err.message);
+      return res.status(500).json({ success: false, mensaje: 'Error al obtener stock' });
     }
+    res.json({ success: true, stock: rows });
+  });
+});
 
-    const payload = {
-      producto: producto.trim(),
-      cantidad: parseInt(cantidad, 10),
-      precio_unitario: parseFloat(precioUnitario),
-      categoria: categoria.trim() || null,
-    };
+/**
+ * POST /api/stock/create
+ * Recibe en el body JSON: { producto, cantidad, precio_unitario, categoria }
+ * Crea un nuevo registro en la tabla stock.
+ * Responde con JSON: { success: true, mensaje: 'Ítem creado', id: <nuevoId> }
+ */
+router.post('/create', (req, res) => {
+  const { producto, cantidad, precio_unitario, categoria } = req.body;
 
-    try {
-      let endpoint = '';
-      let method = '';
-      if (modoEdicion) {
-        endpoint = `http://localhost:3000/api/stock/update/${idEditar}`;
-        method = 'PUT';
-      } else {
-        endpoint = 'http://localhost:3000/api/stock/create';
-        method = 'POST';
-      }
+  // Validación mínima
+  if (
+    !producto ||
+    cantidad == null || // incluye 0, pero "null" o "undefined" no
+    precio_unitario == null
+  ) {
+    return res
+      .status(400)
+      .json({ success: false, mensaje: 'Faltan datos obligatorios' });
+  }
 
-      const res = await fetch(endpoint, {
-        method,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-      const data = await res.json();
+  const sql = `
+    INSERT INTO stock (producto, cantidad, precio_unitario, categoria)
+    VALUES (?, ?, ?, ?);
+  `;
+  const params = [
+    producto.trim(),
+    parseInt(cantidad, 10),
+    parseFloat(precio_unitario),
+    categoria ? categoria.trim() : null,
+  ];
 
-      if (res.ok && data.success) {
-        setMensaje(modoEdicion ? 'Ítem actualizado correctamente.' : 'Ítem agregado correctamente.');
-        setError(false);
-        limpiarFormulario();
-        fetchProductos();
-      } else {
-        setError(true);
-        setMensaje(data.mensaje || 'Error al guardar el ítem.');
-      }
-    } catch (err) {
-      setError(true);
-      setMensaje('Error de conexión con el servidor.');
-      console.error(err);
+  db.run(sql, params, function (err) {
+    if (err) {
+      console.error('Error al insertar en stock:', err.message);
+      return res
+        .status(500)
+        .json({ success: false, mensaje: 'No se pudo crear el ítem' });
     }
-  };
+    // this.lastID contiene el ID del nuevo registro
+    res.json({ success: true, mensaje: 'Ítem creado', id: this.lastID });
+  });
+});
 
-  // 3) Iniciar edición cargando los campos
-  const iniciarEdicion = (item) => {
-    setModoEdicion(true);
-    setIdEditar(item.id);
-    setProducto(item.producto);
-    setCantidad(item.cantidad.toString());
-    setPrecioUnitario(item.precio_unitario.toString());
-    setCategoria(item.categoria || '');
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
+/**
+ * PUT /api/stock/update/:id
+ * Recibe en el body JSON: { producto, cantidad, precio_unitario, categoria }
+ * Actualiza el registro cuyo id viene por params.
+ * Responde con JSON: { success: true, mensaje: 'Ítem actualizado' }
+ */
+router.put('/update/:id', (req, res) => {
+  const { id } = req.params;
+  const { producto, cantidad, precio_unitario, categoria } = req.body;
 
-  // 4) Limpiar formulario y volver a modo creación
-  const limpiarFormulario = () => {
-    setModoEdicion(false);
-    setIdEditar(null);
-    setProducto('');
-    setCantidad('');
-    setPrecioUnitario('');
-    setCategoria('');
-  };
+  // Validación mínima
+  if (
+    !producto ||
+    cantidad == null ||
+    precio_unitario == null
+  ) {
+    return res
+      .status(400)
+      .json({ success: false, mensaje: 'Faltan datos obligatorios' });
+  }
 
-  // 5) Confirmar eliminación abriendo modal
-  const confirmarEliminar = (id) => {
-    setIdEliminar(id);
-    setShowEliminarModal(true);
-  };
+  const sql = `
+    UPDATE stock
+    SET producto = ?, cantidad = ?, precio_unitario = ?, categoria = ?
+    WHERE id = ?;
+  `;
+  const params = [
+    producto.trim(),
+    parseInt(cantidad, 10),
+    parseFloat(precio_unitario),
+    categoria ? categoria.trim() : null,
+    id,
+  ];
 
-  // 6) Ejecutar eliminación
-  const handleEliminar = async () => {
-    try {
-      const res = await fetch(`http://localhost:3000/api/stock/delete/${idEliminar}`, {
-        method: 'DELETE',
-      });
-      const data = await res.json();
-
-      if (res.ok && data.success) {
-        setMensaje('Ítem eliminado correctamente.');
-        setError(false);
-        fetchProductos();
-      } else {
-        setError(true);
-        setMensaje(data.mensaje || 'Error al eliminar.');
-      }
-    } catch (err) {
-      setError(true);
-      setMensaje('Error de conexión con el servidor.');
-      console.error(err);
-    } finally {
-      setShowEliminarModal(false);
-      setIdEliminar(null);
+  db.run(sql, params, function (err) {
+    if (err) {
+      console.error('Error al actualizar stock:', err.message);
+      return res
+        .status(500)
+        .json({ success: false, mensaje: 'No se pudo actualizar el ítem' });
     }
-  };
+    if (this.changes === 0) {
+      return res
+        .status(404)
+        .json({ success: false, mensaje: 'Ítem no encontrado' });
+    }
+    res.json({ success: true, mensaje: 'Ítem actualizado' });
+  });
+});
 
-  return (
-    <Row className="g-0 vh-100">
-      {/* Sidebar (columna izquierda) */}
-      <Col xs={3} className="bg-light border-end">
-        <Sidebar />
-      </Col>
+/**
+ * DELETE /api/stock/delete/:id
+ * Elimina el registro de stock con el id que se pasa en params.
+ * Responde con JSON: { success: true, mensaje: 'Ítem eliminado' }
+ */
+router.delete('/delete/:id', (req, res) => {
+  const { id } = req.params;
 
-      {/* Contenido principal */}
-      <Col xs={9}>
-        <Container className="py-4">
-          <h2 className="mb-4 text-center">Gestión de Stock</h2>
+  const sql = `DELETE FROM stock WHERE id = ?;`;
+  db.run(sql, [id], function (err) {
+    if (err) {
+      console.error('Error al eliminar ítem de stock:', err.message);
+      return res
+        .status(500)
+        .json({ success: false, mensaje: 'No se pudo eliminar el ítem' });
+    }
+    if (this.changes === 0) {
+      return res
+        .status(404)
+        .json({ success: false, mensaje: 'Ítem no encontrado' });
+    }
+    res.json({ success: true, mensaje: 'Ítem eliminado' });
+  });
+});
 
-          {mensaje && (
-            <Alert variant={error ? 'danger' : 'success'} className="text-center">
-              {mensaje}
-            </Alert>
-          )}
-
-          {/* Formulario Crear/Editar */}
-          <Form onSubmit={handleSubmit} className="mb-5">
-            <Row className="g-3">
-              <Col md={4}>
-                <Form.Group controlId="formProducto">
-                  <Form.Label>Producto *</Form.Label>
-                  <Form.Control
-                    type="text"
-                    placeholder="Nombre del producto"
-                    value={producto}
-                    onChange={(e) => setProducto(e.target.value)}
-                    required
-                  />
-                </Form.Group>
-              </Col>
-              <Col md={2}>
-                <Form.Group controlId="formCantidad">
-                  <Form.Label>Cantidad *</Form.Label>
-                  <Form.Control
-                    type="number"
-                    min="0"
-                    placeholder="0"
-                    value={cantidad}
-                    onChange={(e) => setCantidad(e.target.value)}
-                    required
-                  />
-                </Form.Group>
-              </Col>
-              <Col md={3}>
-                <Form.Group controlId="formPrecioUnitario">
-                  <Form.Label>Precio Unitario *</Form.Label>
-                  <Form.Control
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    placeholder="0.00"
-                    value={precioUnitario}
-                    onChange={(e) => setPrecioUnitario(e.target.value)}
-                    required
-                  />
-                </Form.Group>
-              </Col>
-              <Col md={3}>
-                <Form.Group controlId="formCategoria">
-                  <Form.Label>Categoría</Form.Label>
-                  <Form.Control
-                    type="text"
-                    placeholder="Opcional"
-                    value={categoria}
-                    onChange={(e) => setCategoria(e.target.value)}
-                  />
-                </Form.Group>
-              </Col>
-            </Row>
-            <div className="mt-3 d-flex gap-2">
-              <Button variant="primary" type="submit">
-                {modoEdicion ? 'Actualizar Ítem' : 'Agregar Ítem'}
-              </Button>
-              {modoEdicion && (
-                <Button variant="secondary" onClick={limpiarFormulario}>
-                  Cancelar
-                </Button>
-              )}
-            </div>
-          </Form>
-
-          {/* Tabla de productos */}
-          <h4>Lista de Productos</h4>
-          <Table striped bordered hover responsive className="mt-3">
-            <thead>
-              <tr>
-                <th>#</th>
-                <th>Producto</th>
-                <th>Cantidad</th>
-                <th>Precio Unitario</th>
-                <th>Categoría</th>
-                <th>Acciones</th>
-              </tr>
-            </thead>
-            <tbody>
-              {productos.length ? (
-                productos.map((p, idx) => (
-                  <tr key={p.id}>
-                    <td>{idx + 1}</td>
-                    <td>{p.producto}</td>
-                    <td>{p.cantidad}</td>
-                    <td>${p.precio_unitario.toFixed(2)}</td>
-                    <td>{p.categoria || '-'}</td>
-                    <td className="d-flex gap-2">
-                      <Button
-                        variant="warning"
-                        size="sm"
-                        onClick={() => iniciarEdicion(p)}
-                      >
-                        Editar
-                      </Button>
-                      <Button
-                        variant="danger"
-                        size="sm"
-                        onClick={() => confirmarEliminar(p.id)}
-                      >
-                        Eliminar
-                      </Button>
-                    </td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan={6} className="text-center">
-                    No hay productos en stock.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </Table>
-
-          {/* Modal de confirmación de eliminación */}
-          <Modal show={showEliminarModal} onHide={() => setShowEliminarModal(false)} centered>
-            <Modal.Header closeButton>
-              <Modal.Title>Confirmar Eliminación</Modal.Title>
-            </Modal.Header>
-            <Modal.Body>¿Estás seguro de que quieres eliminar este ítem?</Modal.Body>
-            <Modal.Footer>
-              <Button variant="secondary" onClick={() => setShowEliminarModal(false)}>
-                Cancelar
-              </Button>
-              <Button variant="danger" onClick={handleEliminar}>
-                Sí, eliminar
-              </Button>
-            </Modal.Footer>
-          </Modal>
-        </Container>
-      </Col>
-    </Row>
-  );
-}
+module.exports = router;

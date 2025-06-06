@@ -1,33 +1,45 @@
-// frontend/src/pages/Pedidos.jsx
 import { useState, useEffect } from 'react';
-import { Container, Row, Col, Form, Button, Table, Alert } from 'react-bootstrap';
+import {
+  Form,
+  Button,
+  Table,
+  Alert
+} from 'react-bootstrap';
 
 export default function Pedidos() {
+  // Estados para el formulario de crear pedido
   const [cliente, setCliente] = useState('');
   const [descripcion, setDescripcion] = useState('');
-  const [pedidos, setPedidos] = useState([]);
   const [mensaje, setMensaje] = useState(null);
   const [error, setError] = useState(false);
 
-  // 1) Cargar pedidos pendientes al montar
+  // Estado para la lista de pedidos pendientes
+  const [pedidosPendientes, setPedidosPendientes] = useState([]);
+
+  // Al montar, cargar pedidos pendientes
   useEffect(() => {
-    fetchPedidos();
+    fetchPedidosPendientes();
   }, []);
 
-  const fetchPedidos = () => {
-    fetch('http://localhost:3000/api/pedidos/list-pendientes')
+  const fetchPedidosPendientes = () => {
+    fetch('/api/pedidos/list-pendientes')
       .then((res) => res.json())
       .then((data) => {
         if (data.success) {
-          setPedidos(data.pedidos);
+          setPedidosPendientes(data.pedidos);
+        } else {
+          setError(true);
+          setMensaje('No se pudo obtener pedidos pendientes.');
         }
       })
       .catch((err) => {
-        console.error('Error al obtener pedidos:', err);
+        console.error('Error al obtener pedidos pendientes:', err);
+        setError(true);
+        setMensaje('Error de conexión al servidor.');
       });
   };
 
-  // 2) Crear un pedido nuevo
+  // Al enviar el formulario, crea un pedido nuevo
   const handleCrearPedido = async (e) => {
     e.preventDefault();
     setMensaje(null);
@@ -35,143 +47,85 @@ export default function Pedidos() {
 
     if (!cliente.trim() || !descripcion.trim()) {
       setError(true);
-      setMensaje('Completar todos los campos.');
+      setMensaje('Debes completar ambos campos.');
       return;
     }
-
     try {
-      const res = await fetch('http://localhost:3000/api/pedidos/create', {
+      const res = await fetch('/api/pedidos/create', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ cliente: cliente.trim(), descripcion: descripcion.trim() }),
+        body: JSON.stringify({
+          cliente: cliente.trim(),
+          descripcion: descripcion.trim(),
+        }),
       });
       const data = await res.json();
-
       if (res.ok && data.success) {
         setMensaje('Pedido creado correctamente.');
         setError(false);
         setCliente('');
         setDescripcion('');
-        fetchPedidos(); // recargar lista
+        fetchPedidosPendientes();
       } else {
         setError(true);
         setMensaje(data.mensaje || 'Error al crear el pedido.');
       }
     } catch (err) {
+      console.error('Error al crear pedido:', err);
       setError(true);
-      setMensaje('Error de conexión con el servidor.');
-      console.error(err);
+      setMensaje('Error de conexión al servidor.');
     }
   };
 
-  // 3) Marcar un pedido como entregado
-  const marcarEntregado = async (id) => {
+  // Marcar un pedido como entregado
+  const handleMarcarEntregado = async (id) => {
     try {
-      const res = await fetch(`http://localhost:3000/api/pedidos/marcar-entregado/${id}`, {
+      const res = await fetch(`/api/pedidos/marcar-entregado/${id}`, {
         method: 'PUT',
       });
       const data = await res.json();
-
       if (res.ok && data.success) {
-        fetchPedidos(); // recargar lista
+        fetchPedidosPendientes();
       } else {
-        console.error('Error al marcar entregado:', data.mensaje);
+        setError(true);
+        setMensaje(data.mensaje || 'Error al marcar como entregado.');
       }
     } catch (err) {
-      console.error('Error de conexión al marcar entregado:', err);
+      console.error('Error al marcar entregado:', err);
+      setError(true);
+      setMensaje('Error de conexión al servidor.');
     }
   };
 
   return (
-    <Container className="mt-5">
+    <div>
       <h2 className="mb-4 text-center">Gestión de Pedidos</h2>
 
-      {/* Formulario para crear pedido */}
-      <Row className="justify-content-center">
-        <Col xs={12} md={8} lg={6}>
-          {mensaje && (
-            <Alert variant={error ? 'danger' : 'success'} className="text-center">
-              {mensaje}
-            </Alert>
-          )}
+      {mensaje && (
+        <Alert variant={error ? 'danger' : 'success'} className="text-center">
+          {mensaje}
+        </Alert>
+      )}
 
-          <Form onSubmit={handleCrearPedido}>
-            <Form.Group controlId="formCliente" className="mb-3">
-              <Form.Label>Nombre del cliente</Form.Label>
-              <Form.Control
-                type="text"
-                placeholder="Ingresá nombre de cliente"
-                value={cliente}
-                onChange={(e) => setCliente(e.target.value)}
-                required
-              />
-            </Form.Group>
+      <Form onSubmit={handleCrearPedido} className="mb-5">
+        {/* Campos de “cliente” y “descripción” */}
+      </Form>
 
-            <Form.Group controlId="formDescripcion" className="mb-3">
-              <Form.Label>Descripción del pedido</Form.Label>
-              <Form.Control
-                as="textarea"
-                rows={3}
-                placeholder="Detalles del pedido"
-                value={descripcion}
-                onChange={(e) => setDescripcion(e.target.value)}
-                required
-              />
-            </Form.Group>
-
-            <div className="d-grid">
-              <Button variant="primary" type="submit">
-                Crear Pedido
-              </Button>
-            </div>
-          </Form>
-        </Col>
-      </Row>
-
-      {/* Tabla de pedidos pendientes */}
-      <Row className="mt-5">
-        <Col>
-          <h4>Pedidos Pendientes</h4>
-          <Table striped bordered hover responsive className="mt-3">
-            <thead>
-              <tr>
-                <th>#</th>
-                <th>Cliente</th>
-                <th>Descripción</th>
-                <th>Fecha</th>
-                <th>Acciones</th>
-              </tr>
-            </thead>
-            <tbody>
-              {pedidos.length ? (
-                pedidos.map((p, idx) => (
-                  <tr key={p.id}>
-                    <td>{idx + 1}</td>
-                    <td>{p.cliente}</td>
-                    <td>{p.descripcion}</td>
-                    <td>{new Date(p.fecha).toLocaleString()}</td>
-                    <td>
-                      <Button
-                        variant="success"
-                        size="sm"
-                        onClick={() => marcarEntregado(p.id)}
-                      >
-                        Entregado
-                      </Button>
-                    </td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan={5} className="text-center">
-                    No hay pedidos pendientes.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </Table>
-        </Col>
-      </Row>
-    </Container>
+      <h4>Pedidos Pendientes</h4>
+      <Table striped bordered hover responsive className="mt-3">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Cliente</th>
+            <th>Descripción</th>
+            <th>Fecha</th>
+            <th>Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          {/* Mapeo de pedidos pendientes */}
+        </tbody>
+      </Table>
+    </div>
   );
 }

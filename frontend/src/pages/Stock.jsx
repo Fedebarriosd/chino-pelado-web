@@ -30,7 +30,7 @@ export default function Stock() {
   }, [])
 
   const fetchProductos = () => {
-    fetch('http://localhost:3000/api/stock/list')
+    fetch('/api/stock/list')
       .then((res) => res.json())
       .then((data) => {
         if (data.success) setProductos(data.stock)
@@ -120,7 +120,7 @@ export default function Stock() {
 
   const handleEliminar = async () => {
     try {
-      const res = await fetch(`http://localhost:3000/api/stock/delete/${idEliminar}`, {
+      const res = await fetch(`/api/stock/delete/${idEliminar}`, {
         method: 'DELETE',
       })
       const data = await res.json()
