@@ -5,6 +5,7 @@ import AdminUsuarios  from './pages/Admin';        // módulo Usuarios
 import Stock          from './pages/Stock';        // módulo Stock
 import ProtectedRoute from './routes/ProtectedRoute';
 import AdminLayout    from './layouts/AdminLayout';
+import UserLayout     from './layouts/UserLayout';
 
 export default function App() {
   // Obtiene { usuario, rol } desde localStorage, o null si no hay
@@ -16,15 +17,18 @@ export default function App() {
         {/* 1) Ruta pública de login: NO usa AdminLayout */}
         <Route path="/login" element={<Login />} />
 
-        {/* 2) Ruta de Pedidos para usuario normal: fuera de AdminLayout */}
+        {/* 2) Rutas usuario normal con sidebar */}
         <Route
-          path="/pedidos"
           element={
             <ProtectedRoute usuario={usuario}>
-              <Pedidos />
+              <UserLayout />
             </ProtectedRoute>
           }
-        />
+        >
+          <Route path="/pedidos" element={<Pedidos />} />
+          <Route path="/stock"   element={<Stock />} />
+        </Route>
+
 
         {/* 3) Rutas de Admin: todas bajo /admin, dentro de AdminLayout */}
         <Route
