@@ -14,17 +14,25 @@ export default function Stock() {
   const [mensaje, setMensaje] = useState(null)
   const [error, setError] = useState(false)
 
+  // Estados para crear/editar stock
   const [modoEdicion, setModoEdicion] = useState(false)
   const [idEditar, setIdEditar] = useState(null)
   const [producto, setProducto] = useState('')
   const [cantidad, setCantidad] = useState('')
+  const [minimo, setMinimo] = useState('')
   const [precioUnitario, setPrecioUnitario] = useState('')
   const [categoria, setCategoria] = useState('')
 
+  // Modal de eliminación
   const [showEliminarModal, setShowEliminarModal] = useState(false)
   const [idEliminar, setIdEliminar] = useState(null)
 
-  // Carga inicial de productos
+  // Modal de descuento
+  const [showDecModal, setShowDecModal] = useState(false)
+  const [idDec, setIdDec] = useState(null)
+  const [decCantidad, setDecCantidad] = useState('')
+
+  // Cargar productos
   useEffect(() => {
     fetchProductos()
   }, [])
@@ -44,28 +52,25 @@ export default function Stock() {
     setMensaje(null)
     setError(false)
 
-    if (!producto.trim() || cantidad === '' || precioUnitario === '') {
+    if (!producto.trim() || cantidad === '' || minimo === '' || precioUnitario === '') {
       setError(true)
       setMensaje('Completar todos los campos obligatorios.')
       return
     }
+
     const payload = {
       producto: producto.trim(),
       cantidad: parseInt(cantidad, 10),
+      minimo: parseInt(minimo, 10),
       precio_unitario: parseFloat(precioUnitario),
       categoria: categoria.trim() || null,
     }
 
     try {
-      let endpoint = ''
-      let method = ''
-      if (modoEdicion) {
-        endpoint = `http://localhost:3000/api/stock/update/${idEditar}`
-        method = 'PUT'
-      } else {
-        endpoint = 'http://localhost:3000/api/stock/create'
-        method = 'POST'
-      }
+      const endpoint = modoEdicion
+        ? `/api/stock/update/${idEditar}`
+        : '/api/stock/create'
+      const method = modoEdicion ? 'PUT' : 'POST'
 
       const res = await fetch(endpoint, {
         method,
@@ -75,11 +80,7 @@ export default function Stock() {
       const data = await res.json()
 
       if (res.ok && data.success) {
-        setMensaje(
-          modoEdicion
-            ? 'Ítem actualizado correctamente.'
-            : 'Ítem agregado correctamente.'
-        )
+        setMensaje(modoEdicion ? 'Ítem actualizado correctamente.' : 'Ítem agregado correctamente.')
         setError(false)
         limpiarFormulario()
         fetchProductos()
@@ -99,6 +100,7 @@ export default function Stock() {
     setIdEditar(item.id)
     setProducto(item.producto)
     setCantidad(item.cantidad.toString())
+    setMinimo(item.minimo?.toString() || '0')
     setPrecioUnitario(item.precio_unitario.toString())
     setCategoria(item.categoria || '')
     window.scrollTo({ top: 0, behavior: 'smooth' })
@@ -109,15 +111,16 @@ export default function Stock() {
     setIdEditar(null)
     setProducto('')
     setCantidad('')
+    setMinimo('')
     setPrecioUnitario('')
     setCategoria('')
   }
 
+  // Eliminar ítem de stock
   const confirmarEliminar = (id) => {
     setIdEliminar(id)
     setShowEliminarModal(true)
   }
-
   const handleEliminar = async () => {
     try {
       const res = await fetch(`/api/stock/delete/${idEliminar}`, {
@@ -143,6 +146,43 @@ export default function Stock() {
     }
   }
 
+  // Descontar stock
+  const confirmarDescontar = (id) => {
+    setIdDec(id)
+    setDecCantidad('')
+    setShowDecModal(true)
+  }
+  const handleDescontar = async () => {
+    if (!decCantidad || parseInt(decCantidad, 10) <= 0) {
+      setError(true)
+      setMensaje('Cantidad inválida para descuento.')
+      return
+    }
+    try {
+      const res = await fetch(`/api/stock/decrement/${idDec}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ cantidad: parseInt(decCantidad, 10) }),
+      })
+      const data = await res.json()
+      if (res.ok && data.success) {
+        setMensaje('Stock descontado correctamente.')
+        setError(false)
+        fetchProductos()
+      } else {
+        setError(true)
+        setMensaje(data.mensaje || 'Error al descontar stock.')
+      }
+    } catch (err) {
+      setError(true)
+      setMensaje('Error de conexión con el servidor.')
+      console.error(err)
+    } finally {
+      setShowDecModal(false)
+      setIdDec(null)
+    }
+  }
+
   return (
     <>
       <h2 className="mb-4 text-center">Gestión de Stock</h2>
@@ -156,7 +196,7 @@ export default function Stock() {
       {/* Formulario Crear/Editar */}
       <Form onSubmit={handleSubmit} className="mb-5">
         <Row className="g-3">
-          <Col md={4}>
+          <Col md={3}>
             <Form.Group controlId="formProducto">
               <Form.Label>Producto *</Form.Label>
               <Form.Control
@@ -181,7 +221,20 @@ export default function Stock() {
               />
             </Form.Group>
           </Col>
-          <Col md={3}>
+          <Col md={2}>
+            <Form.Group controlId="formMinimo">
+              <Form.Label>Mínimo *</Form.Label>
+              <Form.Control
+                type="number"
+                min="0"
+                placeholder="0"
+                value={minimo}
+                onChange={(e) => setMinimo(e.target.value)}
+                required
+              />
+            </Form.Group>
+          </Col>
+          <Col md={2}>
             <Form.Group controlId="formPrecioUnitario">
               <Form.Label>Precio Unitario *</Form.Label>
               <Form.Control
@@ -227,6 +280,7 @@ export default function Stock() {
             <th>#</th>
             <th>Producto</th>
             <th>Cantidad</th>
+            <th>Mínimo</th>
             <th>Precio Unitario</th>
             <th>Categoría</th>
             <th>Acciones</th>
@@ -239,6 +293,7 @@ export default function Stock() {
                 <td>{idx + 1}</td>
                 <td>{p.producto}</td>
                 <td>{p.cantidad}</td>
+                <td>{p.minimo}</td>
                 <td>${p.precio_unitario.toFixed(2)}</td>
                 <td>{p.categoria || '-'}</td>
                 <td className="d-flex gap-2">
@@ -248,6 +303,13 @@ export default function Stock() {
                     onClick={() => iniciarEdicion(p)}
                   >
                     Editar
+                  </Button>
+                  <Button
+                    variant="info"
+                    size="sm"
+                    onClick={() => confirmarDescontar(p.id)}
+                  >
+                    Descontar
                   </Button>
                   <Button
                     variant="danger"
@@ -261,7 +323,7 @@ export default function Stock() {
             ))
           ) : (
             <tr>
-              <td colSpan={6} className="text-center">
+              <td colSpan={7} className="text-center">
                 No hay productos en stock.
               </td>
             </tr>
@@ -270,11 +332,7 @@ export default function Stock() {
       </Table>
 
       {/* Modal de confirmación eliminación */}
-      <Modal
-        show={showEliminarModal}
-        onHide={() => setShowEliminarModal(false)}
-        centered
-      >
+      <Modal show={showEliminarModal} onHide={() => setShowEliminarModal(false)} centered>
         <Modal.Header closeButton>
           <Modal.Title>Confirmar Eliminación</Modal.Title>
         </Modal.Header>
@@ -285,6 +343,34 @@ export default function Stock() {
           </Button>
           <Button variant="danger" onClick={handleEliminar}>
             Sí, eliminar
+          </Button>
+        </Modal.Footer>
+      </Modal>
+
+      {/* Modal de confirmación de descuento */}
+      <Modal show={showDecModal} onHide={() => setShowDecModal(false)} centered>
+        <Modal.Header closeButton>
+          <Modal.Title>Descontar Stock</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <Form.Group controlId="formDecCantidad">
+            <Form.Label>Cantidad a descontar *</Form.Label>
+            <Form.Control
+              type="number"
+              min="1"
+              placeholder="Ingrese cantidad"
+              value={decCantidad}
+              onChange={(e) => setDecCantidad(e.target.value)}
+              required
+            />
+          </Form.Group>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setShowDecModal(false)}>
+            Cancelar
+          </Button>
+          <Button variant="primary" onClick={handleDescontar}>
+            Descontar
           </Button>
         </Modal.Footer>
       </Modal>

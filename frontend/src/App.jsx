@@ -13,10 +13,10 @@ export default function App() {
   return (
     <BrowserRouter>
       <Routes>
-        {/* 1) Ruta pública de login */}
+        {/* 1) Ruta pública de login: NO usa AdminLayout */}
         <Route path="/login" element={<Login />} />
 
-        {/* 2) Ruta de Pedidos para usuario normal (si la tienes) */}
+        {/* 2) Ruta de Pedidos para usuario normal: fuera de AdminLayout */}
         <Route
           path="/pedidos"
           element={
@@ -26,23 +26,20 @@ export default function App() {
           }
         />
 
-        {/* 3) Bloque de rutas para admin, todas bajo /admin/* */}
+        {/* 3) Rutas de Admin: todas bajo /admin, dentro de AdminLayout */}
         <Route
-          path="/admin/*"
+          path="/admin"
           element={
             <ProtectedRoute usuario={usuario} requiereAdmin>
               <AdminLayout />
             </ProtectedRoute>
           }
         >
-          {/* 
-            Rutas hijas de /admin/* 
-            3.a) /admin            → AdminUsuarios (Gestión de usuarios) 
-            3.b) /admin/stock      → Stock (Gestión de stock) 
-            3.c) /admin/pedidos    → Pedidos (reutiliza tu Pedidos original)
-          */}
+          {/* /admin → Gestión de usuarios */}
           <Route index element={<AdminUsuarios />} />
+          {/* /admin/stock → Gestión de stock */}
           <Route path="stock" element={<Stock />} />
+          {/* /admin/pedidos → Reutiliza tu Pedidos original */}
           <Route path="pedidos" element={<Pedidos />} />
         </Route>
 

@@ -126,4 +126,27 @@ router.put('/marcar-entregado/:id', (req, res) => {
   });
 });
 
+/**
+ * DELETE /api/pedidos/delete/:id
+ * Marca como entregado (entregado = 1) el pedido con id = :id
+ * (en realidad no se elimina, solo se marca como completado)
+ */
+router.delete('/delete/:id', (req, res) => {
+  const { id } = req.params;
+  db.run(
+    `UPDATE pedidos SET entregado = 1 WHERE id = ?;`,
+    [id],
+    function(err) {
+      if (err) {
+        console.error('Error marcando entregado:', err);
+        return res.status(500).json({ success: false, mensaje: 'Error al eliminar pedido.' });
+      }
+      if (this.changes === 0) {
+        return res.status(404).json({ success: false, mensaje: 'Pedido no encontrado.' });
+      }
+      res.json({ success: true, mensaje: 'Pedido marcado como completado.' });
+    }
+  );
+});
+
 module.exports = router;
