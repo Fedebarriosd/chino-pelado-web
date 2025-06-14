@@ -9,6 +9,7 @@ const pedidosRoutes = require('./routes/pedidos');
 const stockRoutes   = require('./routes/stock');
 const comprasRoutes = require('./routes/compras');
 const productosRoutes = require('./routes/productos');
+const recetasRoutes = require('./routes/recetas');
 
 const app = express();
 app.use(cors());
@@ -20,6 +21,7 @@ app.use('/api/pedidos', pedidosRoutes);
 app.use('/api/stock',   stockRoutes);
 app.use('/api/compras', comprasRoutes);
 app.use('/api/productos', productosRoutes);
+app.use('/api/recetas', recetasRoutes);
 
 app.listen(3000, () => {
   console.log('Servidor escuchando en http://localhost:3000');

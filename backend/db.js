@@ -172,6 +172,99 @@ db.serialize(() => {
       }
     });
   });
+
+  db.run(`CREATE TABLE IF NOT EXISTS recetas (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    producto_id INTEGER NOT NULL,
+    stock_id INTEGER NOT NULL,
+    cantidad INTEGER NOT NULL,
+    FOREIGN KEY(producto_id) REFERENCES productos(id),
+    FOREIGN KEY(stock_id) REFERENCES stock(id)
+  );`, err => {
+    if (err) console.error('Error creando tabla recetas:', err.message);
+    else console.log('✅ Tabla "recetas" lista');
+  }
+  );
+
+  // Seed inicial de recetas para pizzas
+  const recetaDefaults = [
+    // Pizza Margherita
+    { producto_id: 1, stock_id: 1, cantidad: 1 }, // Tomate
+    { producto_id: 1, stock_id: 2, cantidad: 1 }, // Queso Mozzarella
+    { producto_id: 1, stock_id: 3, cantidad: 1 }, // Albahaca
+    // Pizza Palmito
+    { producto_id: 2, stock_id: 4, cantidad: 1 }, // Jamón
+    { producto_id: 2, stock_id: 5, cantidad: 1 }, // Pepperoni
+    { producto_id: 2, stock_id: 6, cantidad: 1 }, // Aceitunas
+    // Napolitana
+    { producto_id: 3, stock_id: 7, cantidad: 1 }, // Anchoas
+    { producto_id: 3, stock_id: 8, cantidad: 1 }, // Alcaparras
+    { producto_id: 3, stock_id: 9, cantidad: 1 }, // Ajo
+    // Pizza del Chino
+    { producto_id: 6, stock_id: 10, cantidad: 1 }, // Salsa de Soja
+    { producto_id: 6, stock_id: 11, cantidad: 1 }, // Pollo
+    { producto_id: 6, stock_id: 12, cantidad: 1 }, // Cebolla
+    // Pizza Vegetariana
+    { producto_id: 9, stock_id: 13, cantidad: 1 }, // Pimientos
+    { producto_id: 9, stock_id: 14, cantidad: 1 }, // Champiñones
+    { producto_id: 9, stock_id: 15, cantidad: 1 }, // Cebolla
+    // Pizza BBQ
+    { producto_id: 11, stock_id: 16, cantidad: 1 }, // Salsa BBQ
+    { producto_id: 11, stock_id: 17, cantidad: 1 }, // Pollo
+    { producto_id: 11, stock_id: 18, cantidad: 1 }, // Cebolla
+    // Pizza Cuatro Quesos
+    { producto_id: 14, stock_id: 19, cantidad: 1 }, // Mozzarella
+    { producto_id: 14, stock_id: 20, cantidad: 1 }, // Queso Azul
+    { producto_id: 14, stock_id: 21, cantidad: 1 }, // Queso de Cabra
+    { producto_id: 14, stock_id: 22, cantidad: 1 }, // Parmesano
+    // Pizza Hawaiana
+    { producto_id: 16, stock_id: 23, cantidad: 1 }, // Piña
+    { producto_id: 16, stock_id: 24, cantidad: 1 }, // Jamón
+    { producto_id: 16, stock_id: 25, cantidad: 1 }, // Queso
+    // Pizza Picante
+    { producto_id: 18, stock_id: 26, cantidad: 1 }, // Chorizo Picante
+    { producto_id: 18, stock_id: 27, cantidad: 1 }, // Pimientos
+    // Pizza de Atún
+    { producto_id: 20, stock_id: 28, cantidad: 1 }, // Atún
+    { producto_id: 20, stock_id: 29, cantidad: 1 }, // Cebolla
+    { producto_id: 20, stock_id: 30, cantidad: 1 }, // Aceitunas
+    // Pizza de Champiñones
+    { producto_id: 22, stock_id: 31, cantidad: 1 }, // Champiñones Frescos
+    { producto_id: 22, stock_id: 32, cantidad: 1 }, // Queso
+    // Pizza de Pimiento
+    { producto_id: 24, stock_id: 33, cantidad: 1 }, // Pimientos Asados
+    { producto_id: 24, stock_id: 34, cantidad: 1 }, // Queso
+    // Pizza de Salchicha
+    { producto_id: 26, stock_id: 35, cantidad: 1 }, // Salchicha Fresca
+    { producto_id: 26, stock_id: 36, cantidad: 1 }, // Cebolla
+    // Pizza de Queso Azul
+    { producto_id: 28, stock_id: 37, cantidad: 1 }, // Queso Azul
+    { producto_id: 28, stock_id: 38, cantidad: 1 }, // Nueces
+    { producto_id: 28, stock_id: 39, cantidad: 1 }, // Miel
+    // Pizza de Pesto
+    { producto_id: 30, stock_id: 40, cantidad: 1 }, // Pesto
+    { producto_id: 30, stock_id: 41, cantidad: 1 }, // Tomate Cherry
+    { producto_id: 30, stock_id: 42, cantidad: 1 }, // Albahaca
+    // Pizza de Pollo al Limón
+    { producto_id: 32, stock_id: 43, cantidad: 1 }, // Pollo Marinado
+    { producto_id: 32, stock_id: 44, cantidad: 1 }, // Limón
+    { producto_id: 32, stock_id: 45, cantidad: 1 }, // Cebolla
+  ]
+  recetaDefaults.forEach(r => {
+    db.get(`SELECT id FROM recetas WHERE producto_id = ? AND stock_id = ?;`, [r.producto_id, r.stock_id], (err, row) => {
+      if (err) return console.error(err.message);
+      if (!row) {
+        db.run(
+          `INSERT INTO recetas (producto_id, stock_id, cantidad) VALUES (?, ?, ?);`,
+          [r.producto_id, r.stock_id, r.cantidad],
+          function(err) {
+            if (err) console.error(err.message);
+            else console.log(`🍕 Receta para producto ID ${r.producto_id} creada con stock ID ${r.stock_id}`);
+          }
+        );
+      }
+    });
+  })
 });
 
 module.exports = db;
