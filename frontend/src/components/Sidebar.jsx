@@ -3,7 +3,7 @@ import { Nav } from 'react-bootstrap';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { Button } from 'react-bootstrap';
 
-export default function Sidebar() {
+export default function Sidebar({ onLogout }) {
   const navigate = useNavigate();
   const links = [
     { to: '/admin',         label: 'Usuarios' },
@@ -13,6 +13,7 @@ export default function Sidebar() {
 
   const handleLogout = () => {
     localStorage.removeItem('usuario');
+    if (onLogout) onLogout();
     navigate('/login');
   };
 

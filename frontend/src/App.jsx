@@ -1,27 +1,30 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import Login          from './pages/Login';
-import Pedidos        from './pages/Pedidos';      // tu Pedidos original
-import AdminUsuarios  from './pages/Admin';        // módulo Usuarios
-import Stock          from './pages/Stock';        // módulo Stock
+import { useState } from 'react';
+import Login from './pages/Login';
+import Pedidos from './pages/Pedidos'; // tu Pedidos original
+import AdminUsuarios from './pages/Admin'; // módulo Usuarios
+import Stock from './pages/Stock'; // módulo Stock
 import ProtectedRoute from './routes/ProtectedRoute';
-import AdminLayout    from './layouts/AdminLayout';
-import UserLayout     from './layouts/UserLayout';
+import AdminLayout from './layouts/AdminLayout';
+import UserLayout from './layouts/UserLayout';
 
 export default function App() {
   // Obtiene { usuario, rol } desde localStorage, o null si no hay
-  const usuario = JSON.parse(localStorage.getItem('usuario'));
+  const [usuario, setUsuario] = useState(
+    JSON.parse(localStorage.getItem('usuario'))
+  );
 
   return (
     <BrowserRouter>
       <Routes>
         {/* 1) Ruta pública de login: NO usa AdminLayout */}
-        <Route path="/login" element={<Login />} />
+        <Route path="/login" element={<Login onLogin={setUsuario} />} />
 
         {/* 2) Rutas usuario normal con sidebar */}
         <Route
           element={
             <ProtectedRoute usuario={usuario}>
-              <UserLayout />
+              <UserLayout onLogout={() => setUsuario(null)} />
             </ProtectedRoute>
           }
         >
@@ -35,7 +38,7 @@ export default function App() {
           path="/admin"
           element={
             <ProtectedRoute usuario={usuario} requiereAdmin>
-              <AdminLayout />
+              <AdminLayout onLogout={() => setUsuario(null)} />
             </ProtectedRoute>
           }
         >
