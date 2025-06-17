@@ -9,6 +9,7 @@ export default function Sidebar({ onLogout }) {
     { to: '/admin',         label: 'Usuarios' },
     { to: '/admin/stock',   label: 'Stock'    },
     { to: '/admin/pedidos', label: 'Pedidos'  },
+    { to: '/admin/reporte-ventas', label: 'Reporte Ventas' },
   ];
 
   const handleLogout = () => {
