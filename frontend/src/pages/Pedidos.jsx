@@ -89,19 +89,11 @@ export default function Pedidos() {
       }
     }
 
-    // Construir descripción del pedido
-    const descripcion = orderItems
-      .map(item => {
-        const prod = menu.find(m => m.id === item.productId)
-        return `${item.cantidad} x ${prod?.nombre || 'N/D'}`
-      })
-      .join(', ')
-
     try {
       const res = await fetch('/api/pedidos/create', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ cliente: cliente.trim(), descripcion })
+        body: JSON.stringify({ cliente: cliente.trim(), items: orderItems })
       })
       const data = await res.json()
       if (res.ok && data.success) {
