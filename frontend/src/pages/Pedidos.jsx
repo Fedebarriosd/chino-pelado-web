@@ -90,10 +90,14 @@ export default function Pedidos() {
     }
 
     try {
+      const itemsConNombre = orderItems.map(item => ({
+        ...item,
+        nombre: menu.find(p => p.id === item.productId)?.nombre
+      }))
       const res = await fetch('/api/pedidos/create', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ cliente: cliente.trim(), items: orderItems })
+        body: JSON.stringify({ cliente: cliente.trim(), items: itemsConNombre })
       })
       const data = await res.json()
       if (res.ok && data.success) {
