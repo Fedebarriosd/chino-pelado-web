@@ -2,11 +2,12 @@
 import { Row, Col, Container, Nav, Button } from 'react-bootstrap';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 
-export default function UserLayout() {
+export default function UserLayout({ onLogout }) {
   const navigate = useNavigate();
 
   const handleLogout = () => {
     localStorage.removeItem('usuario');
+    if (onLogout) onLogout();
     navigate('/login', { replace: true });
   };
 

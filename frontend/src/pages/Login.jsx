@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Form, Button, Alert, Container, Card } from 'react-bootstrap';
 
-export default function Login() {
+export default function Login({ onLogin }) {
   const [usuario, setUsuario] = useState('');
   const [contraseña, setContraseña] = useState('');
   const [mensaje, setMensaje] = useState(null);
@@ -25,6 +25,7 @@ export default function Login() {
       if (res.ok) {
         const usuarioParaLocal = { usuario: data.usuario, rol: data.rol };
         localStorage.setItem('usuario', JSON.stringify(usuarioParaLocal));
+        if (onLogin) onLogin(usuarioParaLocal);
         navigate(data.rol === 'admin' ? '/admin' : '/pedidos');
       } else {
         setError(true);
