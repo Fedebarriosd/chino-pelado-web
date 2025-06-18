@@ -6,8 +6,10 @@ const router = express.Router();
  * POST /api/pedidos/create
  * Crea un pedido nuevo con { cliente, items: [{ productId, cantidad }] } en el body,
  * genera descripción automática y descuenta ingredientes de stock.
+ * Si no hay stock suficiente de algún ingrediente, no se realiza la venta.
  */
-router.post('/create', (req, res) => {
+
+router.post('/create', async (req, res) => {
   const { cliente, items } = req.body;
   if (!cliente?.trim() || !Array.isArray(items) || items.length === 0) {
     return res
@@ -15,50 +17,84 @@ router.post('/create', (req, res) => {
       .json({ success: false, mensaje: 'Faltan datos: cliente y lista de productos.' });
   }
 
-  // Generar descripción automática
-  const descripcion = items
-    .map(item => `${item.cantidad} x ${item.nombre || `ID#${item.productId}`}`)
-    .join(', ');
-
-  // Insertar pedido
-  const sqlInsert = `INSERT INTO pedidos (cliente, descripcion) VALUES (?, ?);`;
-  db.run(sqlInsert, [cliente.trim(), descripcion], function (err) {
-    if (err) {
-      console.error('Error al insertar pedido:', err.message);
-      return res
-        .status(500)
-        .json({ success: false, mensaje: 'Error al crear pedido.' });
-    }
-
-    const pedidoId = this.lastID;
-
-    // Descontar ingredientes según receta
-    items.forEach(item => {
-      const { productId, cantidad } = item;
-      db.all(
-        `SELECT stock_id, cantidad AS unidades_por_unidad FROM recetas WHERE producto_id = ?;`,
-        [productId],
-        (err, recetas) => {
-          if (err) {
-            console.error('Error al obtener receta:', err.message);
-            return;
-          }
-          recetas.forEach(r => {
-            const total = r.unidades_por_unidad * cantidad;
-            db.run(
-              `UPDATE stock SET cantidad = cantidad - ? WHERE id = ?;`,
-              [total, r.stock_id],
-              err => {
-                if (err) console.error('Error al descontar stock:', err.message);
-              }
-            );
-          });
-        }
-      );
+  // Helpers promisificados para SQLite
+  const runAsync = (sql, params = []) =>
+    new Promise((resolve, reject) => {
+      db.run(sql, params, function (err) {
+        if (err) reject(err);
+        else resolve(this);
+      });
+    });
+  const allAsync = (sql, params = []) =>
+    new Promise((resolve, reject) => {
+      db.all(sql, params, (err, rows) => {
+        if (err) reject(err);
+        else resolve(rows);
+      });
+    });
+  const getAsync = (sql, params = []) =>
+    new Promise((resolve, reject) => {
+      db.get(sql, params, (err, row) => {
+        if (err) reject(err);
+        else resolve(row);
+      });
     });
 
-    res.json({ success: true, mensaje: 'Pedido creado y stock actualizado.', id: pedidoId });
-  });
+    try {
+    // Generar descripción automática
+    const descripcion = items
+      .map(item => `${item.cantidad} x ${item.nombre || `ID#${item.productId}`}`)
+      .join(', ');
+
+    // Calcular requerimientos totales de stock
+    const requeridos = {};
+    for (const item of items) {
+      const recetas = await allAsync(
+        `SELECT stock_id, cantidad AS unidades_por_unidad FROM recetas WHERE producto_id = ?;`,
+        [item.productId]
+      );
+      for (const r of recetas) {
+        const total = r.unidades_por_unidad * item.cantidad;
+        requeridos[r.stock_id] = (requeridos[r.stock_id] || 0) + total;
+      }
+    }
+
+    // Verificar stock disponible
+    for (const [stockId, necesario] of Object.entries(requeridos)) {
+      const row = await getAsync(`SELECT cantidad FROM stock WHERE id = ?;`, [stockId]);
+      if (!row || row.cantidad < necesario) {
+        return res
+          .status(400)
+          .json({ success: false, mensaje: 'Stock insuficiente para completar el pedido.' });
+      }
+    }
+
+    // Iniciar transacción
+    await runAsync('BEGIN TRANSACTION;');
+
+    try {
+      // Insertar pedido
+      const result = await runAsync(
+        `INSERT INTO pedidos (cliente, descripcion) VALUES (?, ?);`,
+        [cliente.trim(), descripcion]
+      );
+      const pedidoId = result.lastID;
+
+      // Descontar ingredientes
+      for (const [stockId, qty] of Object.entries(requeridos)) {
+        await runAsync(`UPDATE stock SET cantidad = cantidad - ? WHERE id = ?;`, [qty, stockId]);
+      }
+
+      await runAsync('COMMIT;');
+      res.json({ success: true, mensaje: 'Pedido creado y stock actualizado.', id: pedidoId });
+    } catch (err) {
+      await runAsync('ROLLBACK;');
+      throw err;
+    }
+  } catch (err) {
+    console.error('Error al crear pedido:', err.message);
+    res.status(500).json({ success: false, mensaje: 'Error al crear pedido.' });
+  }
 });
 
 /**

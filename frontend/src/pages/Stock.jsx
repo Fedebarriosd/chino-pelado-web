@@ -292,7 +292,9 @@ export default function Stock() {
               <tr key={p.id}>
                 <td>{idx + 1}</td>
                 <td>{p.producto}</td>
-                <td>{p.cantidad}</td>
+                <td style={{ color: p.cantidad <= p.minimo ? 'red' : 'inherit' }}>
+                  {p.cantidad}
+                </td>
                 <td>{p.minimo}</td>
                 <td>${p.precio_unitario.toFixed(2)}</td>
                 <td>{p.categoria || '-'}</td>

@@ -3,6 +3,7 @@ import { Table, Alert } from 'react-bootstrap';
 
 export default function ReporteVentas() {
   const [historial, setHistorial] = useState([]);
+  const [top, setTop] = useState([]);
   const [mensaje, setMensaje] = useState(null);
   const [error, setError] = useState(false);
 
@@ -21,6 +22,15 @@ export default function ReporteVentas() {
         console.error('Error al obtener historial de ventas:', err);
         setError(true);
         setMensaje('Error de conexión con el servidor.');
+      });
+
+    fetch('/api/ventas/mas-vendidos')
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) setTop(data.top);
+      })
+      .catch(err => {
+        console.error('Error al obtener mas vendidos:', err);
       });
   }, []);
 
@@ -55,6 +65,34 @@ export default function ReporteVentas() {
             <tr>
               <td colSpan={4} className="text-center">
                 No hay ventas registradas.
+              </td>
+            </tr>
+          )}
+        </tbody>
+      </Table>
+
+      <h2 className="my-4 text-center">Ítems más vendidos</h2>
+      <Table striped bordered hover responsive>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Producto</th>
+            <th>Total Vendido</th>
+          </tr>
+        </thead>
+        <tbody>
+          {top.length ? (
+            top.map((t, idx) => (
+              <tr key={t.nombre}>
+                <td>{idx + 1}</td>
+                <td>{t.nombre}</td>
+                <td>{t.total}</td>
+              </tr>
+            ))
+          ) : (
+            <tr>
+              <td colSpan={3} className="text-center">
+                Sin información.
               </td>
             </tr>
           )}

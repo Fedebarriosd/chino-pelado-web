@@ -96,6 +96,62 @@ db.serialize(() => {
     }
   });
 
+    // —————————————————————————————
+  // 3.5) Seed inicial de stock (ingredientes)
+  const ingredientesPorDefecto = [
+    { producto: 'Harina de trigo',        cantidad: 200, minimo:  50, precio_unitario: 0.10, categoria: 'Ingrediente' },
+    { producto: 'Levadura fresca',        cantidad:  50, minimo:  10, precio_unitario: 0.20, categoria: 'Ingrediente' },
+    { producto: 'Tomate triturado',       cantidad: 100, minimo:  20, precio_unitario: 0.30, categoria: 'Ingrediente' },
+    { producto: 'Queso mozzarella',       cantidad: 100, minimo:  20, precio_unitario: 0.80, categoria: 'Ingrediente' },
+    { producto: 'Aceite de oliva',        cantidad: 50,  minimo:  10, precio_unitario: 1.20, categoria: 'Ingrediente' },
+    { producto: 'Sal',                    cantidad: 100, minimo:  20, precio_unitario: 0.02, categoria: 'Ingrediente' },
+    { producto: 'Orégano seco',           cantidad:  30, minimo:   5, precio_unitario: 0.05, categoria: 'Ingrediente' },
+    { producto: 'Ajo fresco',             cantidad:  40, minimo:  10, precio_unitario: 0.15, categoria: 'Ingrediente' },
+    { producto: 'Jamón cocido',           cantidad:  50, minimo:  10, precio_unitario: 0.45, categoria: 'Ingrediente' },
+    { producto: 'Pepperoni',              cantidad:  50, minimo:  10, precio_unitario: 0.50, categoria: 'Ingrediente' },
+    { producto: 'Champiñones frescos',    cantidad:  40, minimo:  10, precio_unitario: 0.35, categoria: 'Ingrediente' },
+    { producto: 'Pimientos (rojo/verde)', cantidad:  40, minimo:  10, precio_unitario: 0.30, categoria: 'Ingrediente' },
+    { producto: 'Atún en lata',           cantidad:  30, minimo:  10, precio_unitario: 0.90, categoria: 'Ingrediente' },
+    { producto: 'Alcaparras',             cantidad:  20, minimo:   5, precio_unitario: 0.25, categoria: 'Ingrediente' },
+    { producto: 'Anchoas',                cantidad:  20, minimo:   5, precio_unitario: 0.50, categoria: 'Ingrediente' },
+    { producto: 'Pollo desmenuzado',      cantidad:  50, minimo:  10, precio_unitario: 0.75, categoria: 'Ingrediente' },
+    { producto: 'Piña en rodajas',        cantidad:  30, minimo:   5, precio_unitario: 0.40, categoria: 'Ingrediente' },
+    { producto: 'Salsa BBQ',              cantidad:  40, minimo:  10, precio_unitario: 0.60, categoria: 'Ingrediente' },
+  ];
+
+  ingredientesPorDefecto.forEach(item => {
+    db.get(
+      `SELECT id FROM stock WHERE producto = ?;`,
+      [item.producto],
+      (err, row) => {
+        if (err) {
+          console.error('Error buscando ingrediente por defecto:', err.message);
+          return;
+        }
+        if (!row) {
+          db.run(
+            `INSERT INTO stock 
+              (producto, cantidad, minimo, precio_unitario, categoria)
+             VALUES (?, ?, ?, ?, ?);`,
+            [
+              item.producto,
+              item.cantidad,
+              item.minimo,
+              item.precio_unitario,
+              item.categoria
+            ],
+            function (err) {
+              if (err) console.error('Error insertando ingrediente por defecto:', err.message);
+              else console.log(`➕ Ingrediente "${item.producto}" creado con id ${this.lastID}`);
+            }
+          );
+        }
+      }
+    );
+  });
+  // —————————————————————————————
+
+
   // 4) Tabla Compras (órdenes de compra)
   db.run(
     `CREATE TABLE IF NOT EXISTS compras (
