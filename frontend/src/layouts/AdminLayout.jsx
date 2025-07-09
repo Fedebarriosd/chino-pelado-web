@@ -5,15 +5,24 @@ import Sidebar from '../components/Sidebar';
 export default function AdminLayout({ onLogout }) {
   return (
     <Row className="g-0 vh-100">
-      <Col xs={2} className="bg-light border-end d-flex flex-column vh-100">
-        <Sidebar onLogout={onLogout} />
-      </Col>
+        <Col
+            xs={2}
+            className="bg-light border-end d-flex flex-column"
+            style={{
+                position: 'fixed',
+                top: 0,
+                left: 0,
+                height: '100vh',
+                zIndex: 1000,
+            }}
+        >
+            <Sidebar />
+        </Col>
 
-      <Col xs={9} className="d-flex flex-column">
-        <Container className="py-4 h-100 overflow-auto">
-          <Outlet />
-        </Container>
-      </Col>
+
+        <Col xs={10} style={{ marginLeft: '220px', padding: '2rem', overflowY: 'auto' }}>
+            <Outlet />
+        </Col>
     </Row>
   );
 }

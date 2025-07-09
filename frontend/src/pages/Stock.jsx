@@ -32,6 +32,8 @@ export default function Stock() {
   const [idDec, setIdDec] = useState(null)
   const [decCantidad, setDecCantidad] = useState('')
 
+  const [productoAgotado, setProductoAgotado] = useState(null);
+
   // Cargar productos
   useEffect(() => {
     fetchProductos()
@@ -41,9 +43,14 @@ export default function Stock() {
     fetch('/api/stock/list')
       .then((res) => res.json())
       .then((data) => {
-        if (data.success) setProductos(data.stock)
+        if (!data.success) return;
+
+        setProductos(data.stock);
+
+        const agotado = data.stock.find(p => p.cantidad === 0);
+        setProductoAgotado(agotado || null);
       })
-      .catch((err) => console.error('Error al obtener stock:', err))
+      .catch((err) => console.error('Error al obtener stock:', err));
   }
 
   // Crear o actualizar
@@ -287,9 +294,18 @@ export default function Stock() {
           </tr>
         </thead>
         <tbody>
-          {productos.length ? (
-            productos.map((p, idx) => (
-              <tr key={p.id}>
+        {productos.length ? (
+            [...productos]
+                .sort((a, b) => {
+                  const aBajo = a.cantidad <= a.minimo;
+                  const bBajo = b.cantidad <= b.minimo;
+                  if (aBajo === bBajo) {
+                    return a.id - b.id; // si ambos son iguales respecto al mínimo, ordenar por ID
+                  }
+                  return aBajo ? -1 : 1; // primero los que están en o por debajo del mínimo
+                })
+                .map((p, idx) => (
+                <tr key={p.id}>
                 <td>{idx + 1}</td>
                 <td>{p.producto}</td>
                 <td style={{ color: p.cantidad <= p.minimo ? 'red' : 'inherit' }}>
@@ -376,6 +392,62 @@ export default function Stock() {
           </Button>
         </Modal.Footer>
       </Modal>
+
+      {/* Modal mágico de reposición automática */}
+      <Modal show={!!productoAgotado} onHide={() => setProductoAgotado(null)} centered>
+        <Modal.Header closeButton>
+          <Modal.Title>¡Producto agotado!</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          {productoAgotado && (
+              <>
+                <p>
+                  El ingrediente <strong>{productoAgotado.producto}</strong> se quedó sin stock.
+                </p>
+                <p>¿Desea reponer 10 unidades?</p>
+              </>
+          )}
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setProductoAgotado(null)}>
+            Cancelar
+          </Button>
+          <Button
+              variant="success"
+              onClick={async () => {
+                try {
+                  const res = await fetch(`/api/stock/update/${productoAgotado.id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      ...productoAgotado,
+                      cantidad: productoAgotado.cantidad + 10,
+                      precio_unitario: parseFloat(productoAgotado.precio_unitario),
+                      minimo: productoAgotado.minimo,
+                    }),
+                  });
+                  const data = await res.json();
+                  if (res.ok && data.success) {
+                    setMensaje('🪄 ¡Stock repuesto!');
+                    setError(false);
+                    fetchProductos();
+                  } else {
+                    setMensaje('Error al reponer stock.');
+                    setError(true);
+                  }
+                } catch (err) {
+                  setMensaje('Error al contactar con el servidor.');
+                  setError(true);
+                } finally {
+                  setProductoAgotado(null);
+                }
+              }}
+          >
+            Reponer
+          </Button>
+        </Modal.Footer>
+      </Modal>
+
     </>
   )
 }
