@@ -1,8 +1,19 @@
-// backend/routes/auth.js
+/**
+ * @file Autenticación de usuario0s
+ * @module routes/auth
+ */
 const express = require('express');
 const bcrypt = require('bcrypt');
 const db = require('../db'); // ← Importamos nuestra instancia de SQLite
 const router = express.Router();
+
+/**
+ * Inicia sesion con credenciales de usuario.
+ * @route POST /login
+ * @param {string} usuario - Nombre de usuario
+ * @param {string} contraseña - password del usuario en texto plano
+ * @returns {object} Resultado del login y rol de usuario
+ */
 
 router.post('/login', (req, res) => {
   const { usuario, contraseña } = req.body;

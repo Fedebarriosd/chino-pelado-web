@@ -1,6 +1,7 @@
 {
   "devDependencies": {
-    "concurrently": "^9.1.2"
+    "concurrently": "^9.1.2",
+    "jsdoc": "^4.0.4"
   },
   "name": "chinopeladoweb",
   "version": "1.0.0",
